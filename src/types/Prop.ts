@@ -32,6 +32,7 @@ const door: Prop = {
     base: 'door',
     attributes: ['wooden', 'locked'],
   },
+
   interactions: {
     [Any(Verbs.Unlock, Verbs.Use)]: {
       ['item-key']: {

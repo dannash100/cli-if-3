@@ -33,6 +33,7 @@
     "@types/node": "^14.14.41",
     "@typescript-eslint/eslint-plugin": "^4.22.0",
     "@typescript-eslint/parser": "^4.22.0",
+    "chalk": "4",
     "cli-table3": "0.6.3",
     "eslint": "^7.25.0",
     "eslint-config-prettier": "^8.3.0",
@@ -45,8 +46,5 @@
     "swc-loader": "^0.2.3",
     "ts-node-dev": "^1.1.6",
     "typescript": "5.0.4"
-  },
-  "dependencies": {
-    "chalk": "^5.2.0"
   }
 }

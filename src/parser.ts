@@ -3,19 +3,26 @@ import { directionalAdverbs } from './aliases/directionalAdverbs'
 import { prepositions } from './aliases/preposition'
 import { rootWord } from './aliases/utils'
 import { verbs } from './aliases/verbs'
+import { LexicalCategories } from './types/words/LexicalCategories'
 import { Verbs } from './types/words/Verbs'
 
-const aliasedRegex = <T extends string>(list: Aliases<T>, groupName: string) =>
+export const aliasedRegex = <T extends string>(
+  list: Aliases<T>,
+  groupName: string
+) =>
   `(?<${groupName}>\\b${list
     .map(([root, regex]) => regex?.source || root)
     .join('|')}\\b)`
 
-const aliasedVerbRegex = aliasedRegex(verbs, 'verb')
-const aliasedAdverbRegex = aliasedRegex(adverbs, 'adverb')
-const aliasedPrepositionRegex = aliasedRegex(prepositions, 'preposition')
+const aliasedVerbRegex = aliasedRegex(verbs, LexicalCategories.Verb)
+const aliasedAdverbRegex = aliasedRegex(adverbs, LexicalCategories.Adverb)
+const aliasedPrepositionRegex = aliasedRegex(
+  prepositions,
+  LexicalCategories.Preposition
+)
 const aliasedDirectionalAdverbRegex = aliasedRegex(
   directionalAdverbs,
-  'directionalAdverb'
+  LexicalCategories.DirectionalAdverb
 )
 
 const commandRegex = new RegExp(
