@@ -1,7 +1,5 @@
 import * as Chalk from 'chalk'
 
-const grave = Chalk.whiteBright('✞')
-
 export const mapTemplate = [
   ['█', '-', '█', '-', '█', '-', '█', '-', '█', '-', '█', '-', '█'],
   ['│', '╲', '│', '╱', '│', '╲', '│', '╱', '│', '╲', '│', '╱', '│'],
