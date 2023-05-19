@@ -26,6 +26,10 @@ describe('Matcher', () => {
       const matcher = new Matcher({ noun: 'key', adjectives: ['rusty', 'red'] })
       expect(matcher.match('rusty  red key ')).toBe(MatchType.Exact)
     })
+    it('returns exact when duplicate adjective', () => {
+      const matcher = new Matcher({ noun: 'key', adjectives: ['rusty', 'red'] })
+      expect(matcher.match('rusty rusty red key key')).toBe(MatchType.Exact)
+    })
     it('returns partial for one root matched with no matched adjectives', () => {
       const matcher = new Matcher({ noun: 'key', adjectives: ['red'] })
       expect(matcher.match('key')).toBe(MatchType.Partial)
@@ -33,6 +37,10 @@ describe('Matcher', () => {
     it('returns partial for one of two adjectives matched', () => {
       const matcher = new Matcher({ noun: 'key', adjectives: ['rusty', 'red'] })
       expect(matcher.match('rusty key')).toBe(MatchType.Partial)
+    })
+    it('returns partial when adjectives are duplicated but same length as matchers adjectives', () => {
+      const matcher = new Matcher({ noun: 'key', adjectives: ['rusty', 'red'] })
+      expect(matcher.match('rusty rusty key'))
     })
     it('returns misfit given matched noun and misfit adjective', () => {
       const matcher = new Matcher({ noun: 'key', adjectives: ['red'] })

@@ -1,4 +1,4 @@
-import { generateMapString, generateMapString2, mapTemplate } from './map'
+import { generateMapString, mapTemplate } from './map'
 
 describe('generateMapString', () => {
   it('should generate map string from mapTemplate', () => {
@@ -85,5 +85,3 @@ describe('generateMapString', () => {
     )
   })
 })
-
-console.log(generateMapString2(mapTemplate))

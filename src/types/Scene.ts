@@ -33,6 +33,18 @@ type Paths = {
   [key in DirectionalAdverbs]: Path | Path[]
 }
 
+type Dog = 'me' | 'you'
+
+const obj: Record<Dog, string> = {
+  me: 'me',
+  you: 'you',
+  cat: 'man',
+}
+
+const key: Dog = 'me'
+
+const val = obj[key]
+
 const match = (matcher: Matcher, input: string) => {
   const { base, aliases, attributes } = matcher
 

@@ -1,49 +1,5 @@
-import { flattenAliases } from '../aliases/utils'
-import { aliasedRegex } from '../parser'
-import { LexicalCategories } from './words/LexicalCategories'
-
-/**
- * {
- *  base: 'key',
- *  attributes: ['red', 'rusty']
- * }
- * {
- *  base: 'key',
- *  attributes: ['blue', 'rusty']
- * }
- * Get key
- * => Which key?
- * Get rusty key
- * => Which rusty key?
- * Get green key
- * => I can't see a green key.
- * Get red key
- * => You pickup the red key.
- */
-
-/**
- * Example 1:
- * rusty red key
- *  root: 'key'
- *  attributes: ['red']
- * rusty blue key
- *  root: 'key'
- *  attributes: ['blue']
- *  Get key - which key?
- *  Get rusty key - which rusty key?
- *  Get blue key - you pick up the blue key?
- *  Get green key - You can't see a green key
- * Example 2:
- * green key
- *
- * Given Red key and blue key
- * get Key - [Partial, Partial] if partial?
- * get shiny key - [] - There is no key that is shiny
- * Given no key
- * get shiny key  - I can't see a shiny key
- *
- *
- */
+import { TriggerOnChange } from '../decorators/TriggerOnChange'
+import { NonCaptureGroup, anyOfWords } from '../utils/regexGenerators'
 
 export enum MatchType {
   Misfit = 'misfit', // Get red key given a room with blue key
@@ -51,55 +7,78 @@ export enum MatchType {
   Exact = 'exact', // Get rusty red key given a room with rusty red key
 }
 
-/**
- * Do i need special syntax for like when its required to say red key - dont think so just make noun red key
- */
-
 export class Matcher {
-  noun: (string | [string, RegExp])[]
-  adjectives: string[]
+  @TriggerOnChange<Matcher>((matcher) => matcher.#onNounChange())
+  public declare noun: string[]
+
+  @TriggerOnChange<Matcher>((matcher) => matcher.#onAdjectiveChange())
+  public declare adjectives: string[]
+
+  #regex: RegExp
+  #groups: {
+    adjectives?: NonCaptureGroup
+    noun?: NonCaptureGroup
+    exact?: string
+  } = {}
 
   constructor({ noun, adjectives = [] }) {
     this.noun = Array.isArray(noun) ? noun : [noun]
     this.adjectives = adjectives
   }
 
-  match(input: string) {
-    // TODO this goofy
-    const aliasedNounRegex = aliasedRegex(
-      flattenAliases(this.noun),
-      LexicalCategories.Noun
+  #onAdjectiveChange() {
+    this.#groups.adjectives = anyOfWords(this.adjectives)
+    this.#groups.exact = this.adjectives.reduce(
+      (group, adj) => `${group}(?=.*?\\b${adj}\\b)`,
+      ''
     )
-    const matcherRegex = new RegExp(
-      `^(?<adjectives>(?:\\w+\\s+)*?(?:\\w+)?)\\s*${aliasedNounRegex}\\s*$`,
-      'i'
+    this.#generateRegex()
+  }
+
+  #onNounChange() {
+    this.#groups.noun = anyOfWords(this.noun)
+    this.#generateRegex()
+  }
+
+  #generateRegex() {
+    const { adjectives, noun, exact } = this.#groups
+    this.#regex = new RegExp(
+      this.adjectives?.length
+        ? `^(?:(?<${MatchType.Exact}>${exact}(?!.*?\\b(?!(?:${adjectives}|${noun}))\\w+).+${noun})|(?<${MatchType.Partial}>(?!.*?\\b(?!(?:${adjectives}|${noun}))\\w+)(?:.*?\\s${noun}|${noun}))|(?<${MatchType.Misfit}>.*?(?!${adjectives}).*\\s${noun}$))`
+        : `^(?<${MatchType.Exact}>${noun})$`
     )
+  }
 
-    const match = input.match(matcherRegex)
+  addAdjective(adjective: string) {
+    this.adjectives.push(adjective)
+  }
 
-    if (!match) return false
+  removeAdjective(adjective: string) {
+    this.adjectives = this.adjectives.filter((a) => a !== adjective)
+  }
 
-    const {
-      groups: { noun, adjectives },
-    } = input.match(matcherRegex)
+  addNoun(noun: string) {
+    this.noun.push(noun)
+  }
 
-    if (!noun) return false
+  removeNoun(noun: string) {
+    this.noun = this.noun.filter((n) => n !== noun)
+  }
 
-    const adjectiveList = adjectives ? adjectives.split(/\s+/) : []
+  setAdjectives(adjectives: string[]) {
+    this.adjectives = adjectives
+  }
 
-    const matches = this.adjectives.filter((adjective) =>
-      adjectiveList.includes(adjective)
-    )
-    const misfits = adjectiveList.filter(
-      (adjective) => !this.adjectives.includes(adjective)
-    )
+  setNoun(noun: string[] | string) {
+    this.noun = Array.isArray(noun) ? noun : [noun]
+  }
 
-    if (misfits.length) {
-      return MatchType.Misfit
-    }
-    if (this.adjectives.length === matches.length) {
-      return MatchType.Exact
-    }
-    return MatchType.Partial
+  match(str: string): false | MatchType {
+    const matches = str.match(this.#regex)
+    if (!matches?.groups) return false
+    const { exact, partial, misfit } = matches.groups
+    if (misfit) return MatchType.Misfit
+    if (exact) return MatchType.Exact
+    if (partial) return MatchType.Partial
   }
 }
