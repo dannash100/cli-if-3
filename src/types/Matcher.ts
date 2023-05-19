@@ -1,5 +1,5 @@
-import { TriggerOnChange } from '../decorators/TriggerOnChange'
 import { NonCaptureGroup, anyOfWords } from '../utils/regexGenerators'
+import 'reflect-metadata'
 
 export enum MatchType {
   Misfit = 'misfit', // Get red key given a room with blue key
@@ -7,11 +7,15 @@ export enum MatchType {
   Exact = 'exact', // Get rusty red key given a room with rusty red key
 }
 
+enum ObservedId {
+  AdjectiveChange = 'adjectiveChange',
+  NounChange = 'nounChange',
+}
 export class Matcher {
-  @TriggerOnChange<Matcher>((matcher) => matcher.#onNounChange())
+  @Observed(ObservedId.NounChange)
   public declare noun: string[]
 
-  @TriggerOnChange<Matcher>((matcher) => matcher.#onAdjectiveChange())
+  @Observed(ObservedId.AdjectiveChange)
   public declare adjectives: string[]
 
   #regex: RegExp
@@ -26,7 +30,8 @@ export class Matcher {
     this.adjectives = adjectives
   }
 
-  #onAdjectiveChange() {
+  @Trigger(ObservedId.AdjectiveChange)
+  onAdjectiveChange() {
     this.#groups.adjectives = anyOfWords(this.adjectives)
     this.#groups.exact = this.adjectives.reduce(
       (group, adj) => `${group}(?=.*?\\b${adj}\\b)`,
@@ -35,7 +40,8 @@ export class Matcher {
     this.#generateRegex()
   }
 
-  #onNounChange() {
+  @Trigger(ObservedId.NounChange)
+  onNounChange() {
     this.#groups.noun = anyOfWords(this.noun)
     this.#generateRegex()
   }
