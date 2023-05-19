@@ -1,3 +1,4 @@
+import { Observed, Trigger } from '../decorators/Observed'
 import { NonCaptureGroup, anyOfWords } from '../utils/regexGenerators'
 import 'reflect-metadata'
 
@@ -7,15 +8,15 @@ export enum MatchType {
   Exact = 'exact', // Get rusty red key given a room with rusty red key
 }
 
-enum ObservedId {
+enum MatcherTriggerId {
   AdjectiveChange = 'adjectiveChange',
   NounChange = 'nounChange',
 }
 export class Matcher {
-  @Observed(ObservedId.NounChange)
+  @Observed(MatcherTriggerId.NounChange)
   public declare noun: string[]
 
-  @Observed(ObservedId.AdjectiveChange)
+  @Observed(MatcherTriggerId.AdjectiveChange)
   public declare adjectives: string[]
 
   #regex: RegExp
@@ -30,7 +31,7 @@ export class Matcher {
     this.adjectives = adjectives
   }
 
-  @Trigger(ObservedId.AdjectiveChange)
+  @Trigger(MatcherTriggerId.AdjectiveChange)
   onAdjectiveChange() {
     this.#groups.adjectives = anyOfWords(this.adjectives)
     this.#groups.exact = this.adjectives.reduce(
@@ -40,7 +41,7 @@ export class Matcher {
     this.#generateRegex()
   }
 
-  @Trigger(ObservedId.NounChange)
+  @Trigger(MatcherTriggerId.NounChange)
   onNounChange() {
     this.#groups.noun = anyOfWords(this.noun)
     this.#generateRegex()

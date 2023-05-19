@@ -42,7 +42,7 @@ export function Observed(id: string) {
       value = newVal
       const metadataKey: TriggerId = `${EntityTypes.Trigger}-${id}`
       const methodName = Reflect.getMetadata(metadataKey, target)
-      if (!this.methodName)
+      if (typeof this[methodName] !== 'function')
         // TODO error logs
         return console.error(
           `${ErrorPhase.Runtime}: ${ErrorEntity.PropertyDecorator}/Observed: no method found for ${id} in ${target.constructor.name}`
