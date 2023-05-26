@@ -1,6 +1,12 @@
+import EventEmitter from 'events'
 import { Observed, Trigger } from '../decorators/Observed'
 import { NonCaptureGroup, anyOfWords } from '../utils/regexGenerators'
-import 'reflect-metadata'
+import { Output } from '../decorators/Output'
+
+export interface MatcherConfig {
+  noun: string | string[]
+  adjectives?: string[]
+}
 
 export enum MatchType {
   Misfit = 'misfit', // Get red key given a room with blue key
@@ -8,10 +14,12 @@ export enum MatchType {
   Exact = 'exact', // Get rusty red key given a room with rusty red key
 }
 
-enum MatcherTriggerId {
+export enum MatcherTriggerId {
   AdjectiveChange = 'adjectiveChange',
   NounChange = 'nounChange',
 }
+
+@Output([MatcherTriggerId.NounChange])
 export class Matcher {
   @Observed(MatcherTriggerId.NounChange)
   public declare noun: string[]

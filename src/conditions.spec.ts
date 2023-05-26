@@ -1,5 +1,6 @@
-import { Context } from 'vm'
-import { Any, If, Predicate } from './conditions'
+import { Any, If } from './conditions'
+
+type Context = {}
 
 const predicateN = (i?: number) => (ctx: Context) =>
   ctx[`testContextKey${i || ''}`]
@@ -105,106 +106,6 @@ describe('conditions', () => {
       expect(result).toEqual(actionsN(2))
     })
   })
-  // describe('Predicate', () => {
-  //   it('should return true if predicate is true', () => {
-  //     const condition = Predicate(predicateN()).end()
-  //     const result = condition({ testContextKey: true })
-  //     expect(result).toEqual(true)
-  //   })
-  //   it('should return false if predicate is false', () => {
-  //     const condition = Predicate(predicateN()).end()
-  //     const result = condition({ testContextKey: false })
-  //     expect(result).toEqual(false)
-  //   })
-
-  //   it('should return true with chained and if both predicates are true', () => {
-  //     const condition = Predicate(predicateN())
-  //       .and(predicateN(1))
-  //     .end()
-  //     const result = condition({ testContextKey: true, testContextKey1: true })
-  //     expect(result).toEqual(true)
-  //   })
-  //   it('should return false with chained and if first predicate is false', () => {
-  //     const condition = Predicate(predicateN())
-  //       .and(predicateN(1)).end()
-
-  //     const result = condition({ testContextKey: false, testContextKey1: true })
-  //     expect(result).toEqual(false)
-  //   })
-  //   it('should return false with chained and if second predicate is false', () => {
-  //     const condition = Predicate(predicateN())
-  //       .and(predicateN(1)).end()
-
-  //     const result = condition({ testContextKey: true, testContextKey1: false })
-  //     expect(result).toEqual(false)
-  //   })
-  //   it('should return false with chained and if first predicate is false', () => {
-  //     const condition = Predicate(predicateN())
-  //       .and(predicateN(1))
-  //       .end()
-  //     const result = condition({ testContextKey: false, testContextKey1: true })
-  //     expect(result).toEqual(false)
-  //   })
-  //   it('should return false with chained and if both predicates are false', () => {
-  //     const condition = Predicate(predicateN())
-  //       .and(predicateN(1))
-  //       .end()
-  //     const result = condition({ testContextKey: false, testContextKey1: false })
-  //     expect(result).toEqual(false)
-  //   })
-  //   it('should return true with two chained ands if all predicates are true', () => {
-  //     const condition = Predicate(predicateN())
-  //       .and(predicateN(1))
-  //       .and(predicateN(2))
-  //       .end()
-  //     const result = condition({ testContextKey: true, testContextKey1: true, testContextKey2: true })
-  //     expect(result).toEqual(true)
-  //   });
-  //   it('should return true with chained or if either predicate is true', () => {
-  //     const condition = Predicate(predicateN())
-  //       .or(predicateN(1))
-  //       .end()
-  //     const result = condition({ testContextKey: true, testContextKey1: false })
-  //     expect(result).toEqual(true)
-  //   })
-  //   it('should return false with chained or if both predicates are false', () => {
-  //     const condition = Predicate(predicateN())
-  //       .or(predicateN(1))
-  //       .end()
-  //     const result = condition({ testContextKey: false, testContextKey1: false })
-  //     expect(result).toEqual(false)
-  //   })
-  //   it('should return true with two chained ors if either predicate is true', () => {
-  //     const condition = Predicate(predicateN())
-  //       .or(predicateN(1))
-  //       .or(predicateN(2))
-  //       .end()
-  //     const result = condition({ testContextKey: false, testContextKey1: false, testContextKey2: true })
-  //     expect(result).toEqual(true)
-  //   })
-  //   it('should return false with two chained ors if both predicates are false', () => {
-  //     const condition = Predicate(predicateN())
-  //       .or(predicateN(1))
-  //       .or(predicateN(2))
-  //       .end()
-  //     const result = condition({ testContextKey: false, testContextKey1: false, testContextKey2: false })
-  //     expect(result).toEqual(false)
-  //   })
-  //   it('should return true for with chained and with nested or chain where one is true', () => {
-  //     const condition = Predicate(predicateN())
-  //       .and(Predicate(predicateN(1)).or(predicateN(2)).end())
-  //       .end()
-  //     const result = condition({ testContextKey: true, testContextKey1: false, testContextKey2: true })
-  //     expect(result).toEqual(true)
-  //   });
-  //   it('should return false for with chained and with nested or chain where both are false', () => {
-  //     const condition = Predicate(predicateN())
-  //       .and(Predicate(predicateN(1)).or(predicateN(2)).end())
-  //       .end()
-  //     const result = condition({ testContextKey: false, testContextKey1: false, testContextKey2: false })
-  //     expect(result).toEqual(false)
-  //   })
-  // })
   describe('Any', () => {
     it('should return true if any predicate is true', () => {
       const condition = Any(predicateN(), predicateN(1))

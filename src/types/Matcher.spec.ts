@@ -1,6 +1,15 @@
+import { MatchableGroup, MatchableGroupPaths } from './MatchableGroup'
 import { MatchType, Matcher } from './Matcher'
+import { DirectionalAdverbs } from './words/DirectionalAdverbs'
 
 describe('Matcher', () => {
+  const matchableGroup = new MatchableGroupPaths([
+    {
+      id: 'blah',
+      direction: DirectionalAdverbs.Down,
+    },
+  ])
+  console.log(matchableGroup)
   describe('match', () => {
     it('returns false when no noun match', () => {
       const matcher = new Matcher({ noun: 'key' })
