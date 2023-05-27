@@ -44,22 +44,24 @@ export function Observed(id: string) {
     const setter = function (newVal) {
       value = newVal
       const metadataKey: TriggerId = `${EntityTypes.Trigger}-${id}`
-
       const methodName = Reflect.getMetadata(metadataKey, target)
 
-      if (typeof this[methodName] !== 'function')
-        return console.error(
-          `${ErrorPhase.Runtime}: ${ErrorEntity.PropertyDecorator}/Observed: no method found for ${id} in ${target.constructor.name}`
-        )
-      // Call Trigger method
-      this[methodName]()
+      if (methodName) {
+        if (typeof this[methodName] !== 'function') {
+          return console.error(
+            `${ErrorPhase.Runtime}: ${ErrorEntity.PropertyDecorator}/Observed: no method found for ${id} in ${target.constructor.name}`
+          )
+        }
+        this[methodName]()
+      }
 
-      // if (this.output) {
-      //   const outputList = Reflect.getMetadata('outputEvents', target)
-      //   if (!outputList.includes(id)) {
-      //     this.output.emit(id, newVal)
-      //   }
-      // }
+      // Call Trigger method
+      const triggers = Reflect.getMetadata('eventTriggers', this)
+      if (!triggers) return
+      const eventEmitter = triggers[metadataKey]
+      if (eventEmitter) {
+        eventEmitter.emit('trigger', newVal)
+      }
     }
     Object.defineProperty(target, key, {
       get: getter,
@@ -96,5 +98,11 @@ export function EventTrigger(id: string) {
       )
     }
     console.log(Reflect.getMetadata('eventTriggers', target))
+  }
+}
+
+export function ObservedChild(triggers): ClassDecorator {
+  return function (target: Function) {
+    Reflect.defineMetadata('eventTriggers', triggers, target.prototype)
   }
 }

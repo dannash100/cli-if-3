@@ -1,6 +1,7 @@
+import { Matchable } from './MatchableGroup'
 import { ID } from './ID'
-import { Matchable, MatchableConfig } from './MatchableGroup'
-import { MatchType, Matcher, MatcherConfig } from './Matcher'
+import { DefineTriggers, MatchableEntity } from './MatchableGroup'
+import { Matcher, MatcherConfig } from './Matcher'
 import { SceneId } from './Scene'
 import { DirectionalAdverbs } from './words/DirectionalAdverbs'
 import 'reflect-metadata'
@@ -10,6 +11,7 @@ export type PathId = ID<'path'>
 enum PathsTriggerId {
   PathChange = 'pathChange',
 }
+
 export interface PathConfig {
   id: string
   direction?: DirectionalAdverbs
@@ -25,20 +27,24 @@ export interface PathConfig {
  * A strecth:
  * Take path to beach
  */
+export class Path implements Matchable {
+  public id: PathId
 
-export class Path {
-  id: PathId
-  to: SceneId
-  enabled: boolean
-  direction: DirectionalAdverbs
+  public to: SceneId
+  public direction: DirectionalAdverbs
 
-  static observers: any[] = []
-
-  matcher: Matcher
+  public enabled: boolean
+  public matcher: Matcher
 
   constructor(properties: PathConfig) {
     const triggers = Reflect.getMetadata('eventTriggers', this)
-    console.log(triggers)
+    @ObservedChild(triggers)
+    class ObservedMatcher extends Matcher {
+      constructor(config: MatcherConfig) {
+        super(config)
+      }
+    }
+    this.matcher = new ObservedMatcher(properties.matcher)
     this.id = `path-${properties.id}`
     this.direction = properties.direction
   }

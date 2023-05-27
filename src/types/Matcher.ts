@@ -2,6 +2,7 @@ import EventEmitter from 'events'
 import { Observed, Trigger } from '../decorators/Observed'
 import { NonCaptureGroup, anyOfWords } from '../utils/regexGenerators'
 import { Output } from '../decorators/Output'
+import 'reflect-metadata'
 
 export interface MatcherConfig {
   noun: string | string[]
@@ -19,7 +20,6 @@ export enum MatcherTriggerId {
   NounChange = 'nounChange',
 }
 
-@Output([MatcherTriggerId.NounChange])
 export class Matcher {
   @Observed(MatcherTriggerId.NounChange)
   public declare noun: string[]
@@ -55,13 +55,17 @@ export class Matcher {
     this.#generateRegex()
   }
 
+  /**
+   * New regex for adverb only advanced matching
+   * ^(?:(?<exact>(?=.*?\bred\b)(?=.*?\brusty\b)(?!.*?\b(?!(?:red|rusty)\b)\w+).+)|(?<partial>(?!.*?\b(?!red|rusty)\w+).\w*$)|(?<misfit>.*?(?!(?:red|rusty)).+))$
+   */
   #generateRegex() {
-    const { adjectives, noun, exact } = this.#groups
+    const { adjectives, exact } = this.#groups
     this.#regex = new RegExp(
-      this.adjectives?.length
-        ? `^(?:(?<${MatchType.Exact}>${exact}(?!.*?\\b(?!(?:${adjectives}|${noun}))\\w+).+${noun})|(?<${MatchType.Partial}>(?!.*?\\b(?!(?:${adjectives}|${noun}))\\w+)(?:.*?\\s${noun}|${noun}))|(?<${MatchType.Misfit}>.*?(?!${adjectives}).*\\s${noun}$))`
-        : `^(?<${MatchType.Exact}>${noun})$`
+      `^(?:(?<${MatchType.Exact}>${exact}(?!.*?\\b(?!${adjectives})\\w+).+)|(?<${MatchType.Partial}>(?!.*?\\b(?!${adjectives})\\w+)\\w+)|(?<${MatchType.Misfit}>.*?(?!${adjectives}).+))$`,
+      'i'
     )
+    console.log(this.#regex.source)
   }
 
   addAdjective(adjective: string) {

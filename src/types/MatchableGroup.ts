@@ -1,48 +1,26 @@
 import { EventTrigger } from '../decorators/Observed'
-import { Matcher, MatcherConfig, MatcherTriggerId } from './Matcher'
+import { Matcher, MatcherTriggerId } from './Matcher'
 import { Path, PathConfig } from './Path'
 import 'reflect-metadata'
 
-export const ObserveChild = (triggers): ClassDecorator => {
-  return (target: Function) => {
-    Reflect.defineMetadata('eventTriggers', triggers, target.prototype)
-  }
+export interface Constructor<Entity> {
+  new (...args: any[]): Entity
 }
 
 export interface MatchableEntity {
   matcher?: Matcher
 }
 
-export interface MatchableConfig {
-  matcher?: MatcherConfig
-}
-
-export abstract class MatchableGroup<
-  Entity extends MatchableEntity,
-  Config extends MatchableConfig
-> {
+export abstract class MatchableGroup<Entity extends MatchableEntity> {
   public items: Entity[]
 
-  matchCache: Map<string, Entity[]> = new Map()
+  matchCache: Map<string, Entity[]>
   #nounRegex: RegExp
 
   public onNoMatcher?(item: Entity): void
 
-  constructor(
-    items: Config[],
-    MatchedClass?: {
-      new (config: Config): Entity
-    }
-  ) {
-    const triggers = Reflect.getMetadata('eventTriggers', this)
-    @ObserveChild(triggers)
-    class ObservedMatchable extends MatchedClass {}
-
-    const observableItems = items.map(
-      (item) => new ObservedMatchable(item) as Entity
-    )
-    this.items = observableItems
-    this.prepareOptimisticMatching()
+  constructor(...args: any[]) {
+    this.items = args[0]
   }
 
   @EventTrigger(MatcherTriggerId.NounChange)
@@ -75,8 +53,6 @@ export abstract class MatchableGroup<
         .join('|')})$`,
       'i'
     )
-    console.log(this.#nounRegex)
-    console.log('down'.match(this.#nounRegex))
   }
 
   public match(input: string) {
@@ -84,10 +60,44 @@ export abstract class MatchableGroup<
   }
 }
 
-export class MatchableGroupPaths extends MatchableGroup<Path, PathConfig> {
-  constructor(items: PathConfig[]) {
-    super(items, Path)
+export function ObservedChild(triggers): ClassDecorator {
+  return function (target: Function) {
+    Reflect.defineMetadata('eventTriggers', triggers, target.prototype)
   }
+}
+
+function ObservedItems<
+  T extends Constructor<MatchableEntity>,
+  D extends Constructor<MatchableGroup<InstanceType<T>>>
+>(Class: T) {
+  return function (constructor: D) {
+    return class extends constructor {
+      constructor(...args: any[]) {
+        const triggers = Reflect.getMetadata(
+          'eventTriggers',
+          constructor.prototype
+        )
+        @ObservedChild(triggers)
+        class ObservedMatchable extends Class {
+          constructor(...args: any[]) {
+            super(args[0])
+          }
+        }
+        const observableItems = args[0].map(
+          (item) => new ObservedMatchable(item) as T
+        )
+        super(observableItems)
+      }
+    }
+  }
+}
+
+@ObservedItems(Path)
+export class PathGroup extends MatchableGroup<Path> {
+  constructor(items: PathConfig[]) {
+    super(items)
+  }
+
   public onNoMatcher(item: Path) {
     const { direction } = item
     if (!direction) {
