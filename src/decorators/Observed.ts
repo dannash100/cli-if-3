@@ -1,6 +1,7 @@
 import 'reflect-metadata'
 import { ID } from '../types/ID'
 import { EventEmitter } from 'stream'
+import { Constructor } from '../types/MatchableGroup'
 
 /**
  * @param id - The id of the observed property
@@ -60,7 +61,7 @@ export function Observed(id: string) {
       if (!triggers) return
       const eventEmitter = triggers[metadataKey]
       if (eventEmitter) {
-        eventEmitter.emit('trigger', newVal)
+        eventEmitter.emit('trigger', target.constructor.name)
       }
     }
     Object.defineProperty(target, key, {
@@ -79,30 +80,41 @@ export function Trigger(id: string) {
 }
 
 export function EventTrigger(id: string) {
-  return function (target: any, key: string) {
-    const metadataKey: TriggerId = `${EntityTypes.Trigger}-${id}`
-    const eventEmitter = new EventEmitter()
-    eventEmitter.on('trigger', target[key])
-    const eventTriggers = Reflect.getMetadata('eventTriggers', target)
-    if (eventTriggers) {
-      Reflect.defineMetadata(
-        'eventTriggers',
-        { ...eventTriggers, [metadataKey]: eventEmitter },
-        target
-      )
-    } else {
-      Reflect.defineMetadata(
-        'eventTriggers',
-        { [metadataKey]: eventEmitter },
-        target
-      )
-    }
-    console.log(Reflect.getMetadata('eventTriggers', target))
+  return (target: any, key: string) => {
+    const triggerId: TriggerId = `${EntityTypes.Trigger}-${id}`
+    const eventTriggers = Reflect.getMetadata('eventTriggers', target) || []
+    Reflect.defineMetadata(
+      'eventTriggers',
+      [...eventTriggers, [triggerId, key]],
+      target
+    )
   }
+}
+
+export const hasDecoratorTag = (target: Object, tag: DecoratorTags) => {
+  const tags = Reflect.getMetadata('tags', target) || ([] as DecoratorTags[])
+  return tags.includes(tag)
+}
+
+/** Tags to indicate decorators applied to class */
+export enum DecoratorTags {
+  Observed = 'observed',
 }
 
 export function ObservedChild(triggers): ClassDecorator {
   return function (target: Function) {
     Reflect.defineMetadata('eventTriggers', triggers, target.prototype)
+    const tags = Reflect.getMetadata('tags', target.constructor) || []
+    Reflect.defineMetadata(
+      'tags',
+      [...tags, DecoratorTags.Observed],
+      target.prototype
+    )
   }
+}
+
+export function Observe<TBase extends Constructor<{}>>(Base: TBase, triggers) {
+  @ObservedChild(triggers)
+  class Observed extends Base {}
+  return Observed
 }

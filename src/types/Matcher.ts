@@ -55,17 +55,12 @@ export class Matcher {
     this.#generateRegex()
   }
 
-  /**
-   * New regex for adverb only advanced matching
-   * ^(?:(?<exact>(?=.*?\bred\b)(?=.*?\brusty\b)(?!.*?\b(?!(?:red|rusty)\b)\w+).+)|(?<partial>(?!.*?\b(?!red|rusty)\w+).\w*$)|(?<misfit>.*?(?!(?:red|rusty)).+))$
-   */
   #generateRegex() {
     const { adjectives, exact } = this.#groups
     this.#regex = new RegExp(
       `^(?:(?<${MatchType.Exact}>${exact}(?!.*?\\b(?!${adjectives})\\w+).+)|(?<${MatchType.Partial}>(?!.*?\\b(?!${adjectives})\\w+)\\w+)|(?<${MatchType.Misfit}>.*?(?!${adjectives}).+))$`,
       'i'
     )
-    console.log(this.#regex.source)
   }
 
   addAdjective(adjective: string) {

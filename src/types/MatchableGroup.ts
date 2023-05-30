@@ -1,8 +1,14 @@
-import { EventTrigger, ObservedChild } from '../decorators/Observed'
+import { EventEmitter } from 'stream'
+import chalk from 'chalk'
+import { EventTrigger, Observe } from '../decorators/Observed'
 import { Matcher, MatcherConfig, MatcherTriggerId } from './Matcher'
 import { Path, PathConfig } from './Path'
 import { LexicalCategories } from './words/LexicalCategories'
 import 'reflect-metadata'
+import { EntityLogger, entityLogger } from '../utils/logger'
+import { EntityNames } from './EntityNames'
+import { ErrorSeverity } from './Errors'
+import { ID } from './ID'
 
 export interface Constructor<Entity> {
   new (...args: any[]): Entity
@@ -16,34 +22,95 @@ export interface MatchableConfig {
   matcher?: MatcherConfig
 }
 
+export interface Logging {
+  log: EntityLogger
+}
+
 export abstract class MatchableGroup<
   Config extends MatchableConfig[],
   MatchableClass extends Constructor<Matchable>
-> {
-  public items: InstanceType<MatchableClass>[]
+> implements Logging
+{
+  public id: ID<'matchable-group'>
+  public log: EntityLogger
 
-  #nounRegex: RegExp
-  #matchCache: Map<string, InstanceType<MatchableClass>[]>
+  public subscriptions: EventEmitter[] = []
+  public items: InstanceType<MatchableClass>[] = []
+
+  public nounRegex: RegExp
+  public matchCache: Map<string, InstanceType<MatchableClass>[]>
 
   constructor(config: Config, MatchableClass: MatchableClass) {
-    const triggers = Reflect.getMetadata('eventTriggers', this)
+    this.log = entityLogger(`${MatchableClass.name}Group` as EntityNames)
+    this.prepareMatch = this.prepareMatch.bind(this)
+    this.getCachedMatchable = this.getCachedMatchable.bind(this)
+    this.setCachedMatchable = this.setCachedMatchable.bind(this)
+    this.prepareMatches = this.prepareMatches.bind(this)
 
-    @ObservedChild(triggers)
-    class ObservedMatcher extends MatchableClass {
-      constructor(...args: any[]) {
-        super(...args)
-      }
-    }
-    this.items = config.map(
-      (item) => new ObservedMatcher(item) as InstanceType<MatchableClass>
+    const eventTriggers = Reflect.getMetadata('eventTriggers', this)
+
+    this.log(
+      `Creating group with ${config.length} ${MatchableClass.name} item${
+        config.length === 1 ? '' : 's'
+      }`
     )
+
+    /** Todo method decorator calls once - so all triggers are hitting each group
+     * Need to extends the emitters and instantiate in constructor
+     */
+
+    const triggers = {}
+
+    eventTriggers.forEach(([triggerId, methodName]: [string, string]) => {
+      class TriggerEmitter extends EventEmitter {}
+      const triggerEmitter = new TriggerEmitter()
+
+      const listener = triggerEmitter.on(
+        'trigger',
+        (entityName: EntityNames) => {
+          if (!this.items) return
+          this
+            .log(`${chalk.yellow`${methodName}`} was triggered by observed event 
+           ${chalk.yellowBright
+             .bold`ϟ`} From: ${entityName} ${chalk.whiteBright(triggerId)}`)
+
+          this[methodName]()
+        }
+      )
+      this[triggerId] = listener
+      triggers[triggerId] = triggerEmitter
+    })
+
+    for (let i = 0; i < config.length; i++) {
+      const element = config[i]
+      this.items.push(
+        new Path(element, triggers) as InstanceType<MatchableClass>
+      )
+    }
+
+    // this.items = config.map(
+    //   (item) => {
+    //     const ObservedMatcher = Observe(MatchableClass, triggers);
+    //     return new ObservedMatcher(item) as InstanceType<MatchableClass>
+    //   }
+    // )
+
+    this.items[0].matcher.addNoun('dog')
+    this.items[0].matcher.addNoun('dog')
+
+    this.log(`Observing ${MatchableClass.name} items for changes with triggers:
+    ${Object.keys(triggers)
+      .map((x) => `${chalk.bold`•`} ${chalk.whiteBright(x)}`)
+      .join('\n')}`)
+
+    this.prepareMatches()
   }
 
-  #generateRegex() {
-    this.#nounRegex = new RegExp(
+  public generateRegex() {
+    this.nounRegex = new RegExp(
       `^(?:(?<${LexicalCategories.Adjective}>.*?)\\s+)?(?<${
         LexicalCategories.Noun
-      }>${Array.from(this.#matchCache.keys())
+      }>${Array.from(this.matchCache.keys())
         .sort((a, b) => b.length - a.length)
         .join('|')})$`,
       'i'
@@ -52,31 +119,37 @@ export abstract class MatchableGroup<
 
   // TOdo better name
   public getCachedMatchable(key: string) {
-    return this.#matchCache.get(key)
+    const match = this.matchCache.get(key)
+    return match
   }
   // TOdo better name
   public setCachedMatchable(
     key: string,
     value: InstanceType<MatchableClass>[]
   ) {
-    this.#matchCache.set(key, value)
+    this.matchCache.set(key, value)
   }
 
-  protected prepareMatch(item): void {
+  public prepareMatch(item) {
     const { matcher } = item
-    if (!matcher) return
+    if (!matcher || !matcher.noun) {
+      console.log('#DEBUG: NO MATCHER for', item.id, matcher)
+      return
+    }
     matcher.noun.forEach((key) => {
+      console.log('#DEBUG: NOUN', key)
       const existing = this.getCachedMatchable(key)
       this.setCachedMatchable(key, existing ? [...existing, item] : [item])
     })
   }
 
   @EventTrigger(MatcherTriggerId.NounChange)
-  protected prepareMatches() {
+  public prepareMatches() {
+    console.log(this.items, 'ITEMS triggered')
     if (!this.items) return
-    this.#matchCache = new Map()
+    this.matchCache = new Map()
     this.items.forEach(this.prepareMatch)
-    this.#generateRegex()
+    this.generateRegex()
   }
 }
 
@@ -85,18 +158,26 @@ export class PathGroup extends MatchableGroup<PathConfig[], typeof Path> {
     super(config, Path)
   }
 
-  protected prepareMatch(path: Path) {
+  public prepareMatch(path: Path) {
     const { direction, matcher } = path
-    if (!direction && !matcher)
-      throw new Error('Path must have a matcher or a direction property')
+    if (!direction && !matcher) {
+      this.log(
+        'Path must have a matcher or a direction property',
+        ErrorSeverity.Error
+      )
+      process.exit(1) // todo shutdown
+    }
     if (direction) {
       const existing = this.getCachedMatchable(direction)
-      if (existing)
-        throw new Error(
-          'Path with a direction property must be unique within a PathGroup'
+      if (existing) {
+        this.log(
+          'Path with a direction property must be unique within a PathGroup',
+          ErrorSeverity.Error
         )
+        process.exit(1) // todo shutdown
+      }
       this.setCachedMatchable(direction, existing)
     }
-    super.prepareMatch(path)
+    return super.prepareMatch(path)
   }
 }

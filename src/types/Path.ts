@@ -40,11 +40,7 @@ export class Path implements Matchable {
     const triggers = Reflect.getMetadata('eventTriggers', this)
     if (properties.matcher) {
       @ObservedChild(triggers)
-      class ObservedMatcher extends Matcher {
-        constructor(config: MatcherConfig) {
-          super(config)
-        }
-      }
+      class ObservedMatcher extends Matcher {}
       this.matcher = new ObservedMatcher(properties.matcher)
     }
     this.id = `path-${properties.id}`

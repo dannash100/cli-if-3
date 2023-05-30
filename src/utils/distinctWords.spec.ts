@@ -43,5 +43,3 @@ describe('distinctWords', () => {
     console.timeEnd('5')
   })
 })
-
-console.log(distinctWords('dog dog cat dog'))
