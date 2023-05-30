@@ -34,9 +34,9 @@ export class Matcher {
     exact?: string
   } = {}
 
-  constructor({ noun, adjectives = [] }) {
-    this.noun = Array.isArray(noun) ? noun : [noun]
-    this.adjectives = adjectives
+  constructor({ noun, adjectives = [] }: MatcherConfig) {
+    this.setAdjectives(adjectives)
+    this.setNoun(noun)
   }
 
   @Trigger(MatcherTriggerId.AdjectiveChange)

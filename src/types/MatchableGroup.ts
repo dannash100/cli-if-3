@@ -1,113 +1,102 @@
-import { EventTrigger } from '../decorators/Observed'
-import { Matcher, MatcherTriggerId } from './Matcher'
+import { EventTrigger, ObservedChild } from '../decorators/Observed'
+import { Matcher, MatcherConfig, MatcherTriggerId } from './Matcher'
 import { Path, PathConfig } from './Path'
+import { LexicalCategories } from './words/LexicalCategories'
 import 'reflect-metadata'
 
 export interface Constructor<Entity> {
   new (...args: any[]): Entity
 }
 
-export interface MatchableEntity {
+export interface Matchable {
   matcher?: Matcher
 }
 
-export abstract class MatchableGroup<Entity extends MatchableEntity> {
-  public items: Entity[]
+export interface MatchableConfig {
+  matcher?: MatcherConfig
+}
 
-  matchCache: Map<string, Entity[]>
+export abstract class MatchableGroup<
+  Config extends MatchableConfig[],
+  MatchableClass extends Constructor<Matchable>
+> {
+  public items: InstanceType<MatchableClass>[]
+
   #nounRegex: RegExp
+  #matchCache: Map<string, InstanceType<MatchableClass>[]>
 
-  public onNoMatcher?(item: Entity): void
+  constructor(config: Config, MatchableClass: MatchableClass) {
+    const triggers = Reflect.getMetadata('eventTriggers', this)
 
-  constructor(...args: any[]) {
-    this.items = args[0]
-  }
-
-  @EventTrigger(MatcherTriggerId.NounChange)
-  prepareOptimisticMatching() {
-    if (!this.items) return
-    this.matchCache = new Map()
-    for (let i = 0; i < this.items.length; i++) {
-      const element = this.items[i]
-      const { matcher } = element
-      if (matcher) {
-        for (let y = 0; y < matcher.noun.length; y++) {
-          const noun = matcher.noun[y]
-          const existing = this.matchCache.get(noun)
-          // If existing the noun has potential conflicting matches and extra logic is needed
-          this.matchCache.set(
-            noun,
-            existing ? [...existing, element] : [element]
-          )
-        }
-      } else {
-        if (!this.onNoMatcher) {
-          throw new Error('No matcher and no onNoMatcher handler')
-        }
-        this.onNoMatcher(element)
+    @ObservedChild(triggers)
+    class ObservedMatcher extends MatchableClass {
+      constructor(...args: any[]) {
+        super(...args)
       }
     }
+    this.items = config.map(
+      (item) => new ObservedMatcher(item) as InstanceType<MatchableClass>
+    )
+  }
+
+  #generateRegex() {
     this.#nounRegex = new RegExp(
-      `^(?:(?<adjectives>.*?)\\s+)?(?<noun>${Array.from(this.matchCache.keys())
+      `^(?:(?<${LexicalCategories.Adjective}>.*?)\\s+)?(?<${
+        LexicalCategories.Noun
+      }>${Array.from(this.#matchCache.keys())
         .sort((a, b) => b.length - a.length)
         .join('|')})$`,
       'i'
     )
   }
 
-  public match(input: string) {
-    return this.#nounRegex.exec(input)
+  // TOdo better name
+  public getCachedMatchable(key: string) {
+    return this.#matchCache.get(key)
+  }
+  // TOdo better name
+  public setCachedMatchable(
+    key: string,
+    value: InstanceType<MatchableClass>[]
+  ) {
+    this.#matchCache.set(key, value)
+  }
+
+  prepareMatch(item): void {
+    const { matcher } = item
+    if (!matcher) return
+    matcher.noun.forEach((key) => {
+      const existing = this.getCachedMatchable(key)
+      this.setCachedMatchable(key, existing ? [...existing, item] : [item])
+    })
+  }
+
+  @EventTrigger(MatcherTriggerId.NounChange)
+  prepareMatches() {
+    if (!this.items) return
+    this.#matchCache = new Map()
+    this.items.forEach(this.prepareMatch)
+    this.#generateRegex()
   }
 }
 
-export function ObservedChild(triggers): ClassDecorator {
-  return function (target: Function) {
-    Reflect.defineMetadata('eventTriggers', triggers, target.prototype)
+export class PathGroup extends MatchableGroup<PathConfig[], typeof Path> {
+  constructor(config: PathConfig[]) {
+    super(config, Path)
   }
-}
 
-function ObservedItems<
-  T extends Constructor<MatchableEntity>,
-  D extends Constructor<MatchableGroup<InstanceType<T>>>
->(Class: T) {
-  return function (constructor: D) {
-    return class extends constructor {
-      constructor(...args: any[]) {
-        const triggers = Reflect.getMetadata(
-          'eventTriggers',
-          constructor.prototype
+  prepareMatch(path: Path) {
+    const { direction, matcher } = path
+    if (!direction && !matcher)
+      throw new Error('Path must have a matcher or a direction property')
+    if (direction) {
+      const existing = this.getCachedMatchable(direction)
+      if (existing)
+        throw new Error(
+          'Path with a direction property must be unique within a PathGroup'
         )
-        @ObservedChild(triggers)
-        class ObservedMatchable extends Class {
-          constructor(...args: any[]) {
-            super(args[0])
-          }
-        }
-        const observableItems = args[0].map(
-          (item) => new ObservedMatchable(item) as T
-        )
-        super(observableItems)
-      }
+      this.setCachedMatchable(direction, existing)
     }
-  }
-}
-
-@ObservedItems(Path)
-export class PathGroup extends MatchableGroup<Path> {
-  constructor(items: PathConfig[]) {
-    super(items)
-  }
-
-  public onNoMatcher(item: Path) {
-    const { direction } = item
-    if (!direction) {
-      // TODO - use error enums and all that
-      throw new Error('Path must have a matcher or a to property')
-    }
-    const existing = this.matchCache.get(direction)
-    if (existing) {
-      throw new Error('Path with a to property must be unique')
-    }
-    this.matchCache.set(direction, [item])
+    super.prepareMatch(path)
   }
 }

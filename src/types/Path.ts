@@ -1,10 +1,10 @@
 import { Matchable } from './MatchableGroup'
 import { ID } from './ID'
-import { DefineTriggers, MatchableEntity } from './MatchableGroup'
 import { Matcher, MatcherConfig } from './Matcher'
 import { SceneId } from './Scene'
 import { DirectionalAdverbs } from './words/DirectionalAdverbs'
 import 'reflect-metadata'
+import { ObservedChild } from '../decorators/Observed'
 
 export type PathId = ID<'path'>
 
@@ -38,13 +38,15 @@ export class Path implements Matchable {
 
   constructor(properties: PathConfig) {
     const triggers = Reflect.getMetadata('eventTriggers', this)
-    @ObservedChild(triggers)
-    class ObservedMatcher extends Matcher {
-      constructor(config: MatcherConfig) {
-        super(config)
+    if (properties.matcher) {
+      @ObservedChild(triggers)
+      class ObservedMatcher extends Matcher {
+        constructor(config: MatcherConfig) {
+          super(config)
+        }
       }
+      this.matcher = new ObservedMatcher(properties.matcher)
     }
-    this.matcher = new ObservedMatcher(properties.matcher)
     this.id = `path-${properties.id}`
     this.direction = properties.direction
   }
