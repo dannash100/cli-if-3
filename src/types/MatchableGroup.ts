@@ -62,7 +62,7 @@ export abstract class MatchableGroup<
     this.#matchCache.set(key, value)
   }
 
-  prepareMatch(item): void {
+  protected prepareMatch(item): void {
     const { matcher } = item
     if (!matcher) return
     matcher.noun.forEach((key) => {
@@ -72,7 +72,7 @@ export abstract class MatchableGroup<
   }
 
   @EventTrigger(MatcherTriggerId.NounChange)
-  prepareMatches() {
+  protected prepareMatches() {
     if (!this.items) return
     this.#matchCache = new Map()
     this.items.forEach(this.prepareMatch)
@@ -85,7 +85,7 @@ export class PathGroup extends MatchableGroup<PathConfig[], typeof Path> {
     super(config, Path)
   }
 
-  prepareMatch(path: Path) {
+  protected prepareMatch(path: Path) {
     const { direction, matcher } = path
     if (!direction && !matcher)
       throw new Error('Path must have a matcher or a direction property')
