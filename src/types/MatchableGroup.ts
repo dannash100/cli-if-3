@@ -35,10 +35,10 @@ export abstract class MatchableGroup<
   public log: EntityLogger
 
   public subscriptions: EventEmitter[] = []
-  public items: InstanceType<MatchableClass>[] = []
+  public items: InstanceType<MatchableClass>[]
 
   public nounRegex: RegExp
-  public matchCache: Map<string, InstanceType<MatchableClass>[]>
+  public matchCache: Map<string, InstanceType<MatchableClass>[]> = new Map()
 
   constructor(config: Config, MatchableClass: MatchableClass) {
     this.log = entityLogger(`${MatchableClass.name}Group` as EntityNames)
@@ -67,13 +67,12 @@ export abstract class MatchableGroup<
 
       const listener = triggerEmitter.on(
         'trigger',
-        (entityName: EntityNames) => {
+        async (entityName: EntityNames) => {
           if (!this.items) return
           this
             .log(`${chalk.yellow`${methodName}`} was triggered by observed event 
            ${chalk.yellowBright
              .bold`ϟ`} From: ${entityName} ${chalk.whiteBright(triggerId)}`)
-
           this[methodName]()
         }
       )
@@ -81,22 +80,10 @@ export abstract class MatchableGroup<
       triggers[triggerId] = triggerEmitter
     })
 
-    for (let i = 0; i < config.length; i++) {
-      const element = config[i]
-      this.items.push(
-        new Path(element, triggers) as InstanceType<MatchableClass>
-      )
-    }
-
-    // this.items = config.map(
-    //   (item) => {
-    //     const ObservedMatcher = Observe(MatchableClass, triggers);
-    //     return new ObservedMatcher(item) as InstanceType<MatchableClass>
-    //   }
-    // )
-
-    this.items[0].matcher.addNoun('dog')
-    this.items[0].matcher.addNoun('dog')
+    this.items = config.map((item) => {
+      const ObservedMatcher = Observe(MatchableClass, triggers)
+      return new ObservedMatcher(item) as InstanceType<MatchableClass>
+    })
 
     this.log(`Observing ${MatchableClass.name} items for changes with triggers:
     ${Object.keys(triggers)
@@ -133,11 +120,9 @@ export abstract class MatchableGroup<
   public prepareMatch(item) {
     const { matcher } = item
     if (!matcher || !matcher.noun) {
-      console.log('#DEBUG: NO MATCHER for', item.id, matcher)
       return
     }
     matcher.noun.forEach((key) => {
-      console.log('#DEBUG: NOUN', key)
       const existing = this.getCachedMatchable(key)
       this.setCachedMatchable(key, existing ? [...existing, item] : [item])
     })
@@ -145,8 +130,6 @@ export abstract class MatchableGroup<
 
   @EventTrigger(MatcherTriggerId.NounChange)
   public prepareMatches() {
-    console.log(this.items, 'ITEMS triggered')
-    if (!this.items) return
     this.matchCache = new Map()
     this.items.forEach(this.prepareMatch)
     this.generateRegex()

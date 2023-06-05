@@ -1,8 +1,8 @@
-import EventEmitter from 'events'
 import { Observed, Trigger } from '../decorators/Observed'
 import { NonCaptureGroup, anyOfWords } from '../utils/regexGenerators'
-import { Output } from '../decorators/Output'
 import 'reflect-metadata'
+import { Logging } from './MatchableGroup'
+import { EntityLogger } from '../utils/logger'
 
 export interface MatcherConfig {
   noun: string | string[]
@@ -20,7 +20,9 @@ export enum MatcherTriggerId {
   NounChange = 'nounChange',
 }
 
-export class Matcher {
+export class Matcher implements Logging {
+  public log: EntityLogger
+
   @Observed(MatcherTriggerId.NounChange)
   public declare noun: string[]
 
@@ -37,6 +39,7 @@ export class Matcher {
   constructor({ noun, adjectives = [] }: MatcherConfig) {
     this.setAdjectives(adjectives)
     this.setNoun(noun)
+    console.log('instantiating matcher', noun, adjectives)
   }
 
   @Trigger(MatcherTriggerId.AdjectiveChange)
@@ -51,6 +54,7 @@ export class Matcher {
 
   @Trigger(MatcherTriggerId.NounChange)
   onNounChange() {
+    console.log(this.noun, 'trigger on change')
     this.#groups.noun = anyOfWords(this.noun)
     this.#generateRegex()
   }
@@ -72,7 +76,7 @@ export class Matcher {
   }
 
   addNoun(noun: string) {
-    this.noun.push(noun)
+    this.noun = [...this.noun, noun]
   }
 
   removeNoun(noun: string) {

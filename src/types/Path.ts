@@ -4,7 +4,7 @@ import { Matcher, MatcherConfig } from './Matcher'
 import { SceneId } from './Scene'
 import { DirectionalAdverbs } from './words/DirectionalAdverbs'
 import 'reflect-metadata'
-import { ObservedChild } from '../decorators/Observed'
+import { Observe, ObservedChild } from '../decorators/Observed'
 
 export type PathId = ID<'path'>
 
@@ -39,8 +39,7 @@ export class Path implements Matchable {
   constructor(properties: PathConfig) {
     const triggers = Reflect.getMetadata('eventTriggers', this)
     if (properties.matcher) {
-      @ObservedChild(triggers)
-      class ObservedMatcher extends Matcher {}
+      const ObservedMatcher = Observe(Matcher, triggers)
       this.matcher = new ObservedMatcher(properties.matcher)
     }
     this.id = `path-${properties.id}`

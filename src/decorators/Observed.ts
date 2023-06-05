@@ -2,6 +2,8 @@ import 'reflect-metadata'
 import { ID } from '../types/ID'
 import { EventEmitter } from 'stream'
 import { Constructor } from '../types/MatchableGroup'
+import chalk from 'chalk'
+import { MatcherTriggerId } from 'src/types/Matcher'
 
 /**
  * @param id - The id of the observed property
@@ -36,14 +38,14 @@ type TriggerId = ID<EntityTypes.Trigger>
 
 export function Observed(id: string) {
   return function (target: any, key: string) {
-    let value
+    const property = Symbol()
     const getter = function () {
-      return value
+      return this[property]
     }
 
     // Setter with first param as type of property decorated
     const setter = function (newVal) {
-      value = newVal
+      this[property] = newVal
       const metadataKey: TriggerId = `${EntityTypes.Trigger}-${id}`
       const methodName = Reflect.getMetadata(metadataKey, target)
 
