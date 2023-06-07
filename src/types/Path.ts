@@ -1,10 +1,13 @@
-import { Matchable } from './MatchableGroup'
+import chalk from 'chalk'
+import { Logging, Matchable } from './MatchableGroup'
 import { ID } from './ID'
 import { Matcher, MatcherConfig } from './Matcher'
 import { SceneId } from './Scene'
 import { DirectionalAdverbs } from './words/DirectionalAdverbs'
 import 'reflect-metadata'
 import { Observe, ObservedChild } from '../decorators/Observed'
+import { entityLogger } from '../utils/logger'
+import { EntityNames } from './EntityNames'
 
 export type PathId = ID<'path'>
 
@@ -27,7 +30,8 @@ export interface PathConfig {
  * A strecth:
  * Take path to beach
  */
-export class Path implements Matchable {
+export class Path implements Matchable, Logging {
+  public log = entityLogger(EntityNames.Path)
   public id: PathId
 
   public to: SceneId
@@ -37,6 +41,15 @@ export class Path implements Matchable {
   public matcher: Matcher
 
   constructor(properties: PathConfig) {
+    this.log(
+      `Creating with properties:
+    ${chalk.bold`•`} id: ${chalk.yellowBright(properties.id)}
+    ${
+      properties.direction &&
+      `${chalk.bold`•`} direction: ${properties.direction}`
+    }
+    `
+    )
     const triggers = Reflect.getMetadata('eventTriggers', this)
     if (properties.matcher) {
       const ObservedMatcher = Observe(Matcher, triggers)

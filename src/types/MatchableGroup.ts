@@ -50,9 +50,9 @@ export abstract class MatchableGroup<
     const eventTriggers = Reflect.getMetadata('eventTriggers', this)
 
     this.log(
-      `Creating group with ${config.length} ${MatchableClass.name} item${
-        config.length === 1 ? '' : 's'
-      }`
+      `Creating matchable group with ${config.length} ${
+        MatchableClass.name
+      } item${config.length === 1 ? '' : 's'}`
     )
 
     /** Todo method decorator calls once - so all triggers are hitting each group

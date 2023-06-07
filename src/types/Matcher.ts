@@ -39,7 +39,17 @@ export class Matcher implements Logging {
   constructor({ noun, adjectives = [] }: MatcherConfig) {
     this.setAdjectives(adjectives)
     this.setNoun(noun)
-    console.log('instantiating matcher', noun, adjectives)
+    /**
+     * ${
+      properties?.matcher
+        ? `${chalk.bold`•`} name:${
+            properties.matcher?.adjectives
+              ? ` ${chalk.yellow(properties.matcher.adjectives)}`
+              : ''
+          } ${chalk.yellowBright(properties.matcher.noun)}`
+        : ''
+    }
+     */
   }
 
   @Trigger(MatcherTriggerId.AdjectiveChange)
@@ -54,7 +64,6 @@ export class Matcher implements Logging {
 
   @Trigger(MatcherTriggerId.NounChange)
   onNounChange() {
-    console.log(this.noun, 'trigger on change')
     this.#groups.noun = anyOfWords(this.noun)
     this.#generateRegex()
   }
