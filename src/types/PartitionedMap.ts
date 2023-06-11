@@ -4,7 +4,7 @@ class Partition {
   public value: Map<string, any>
   public active: boolean
 
-  constructor(value: Map<string, any>, active: boolean) {
+  constructor(value: Map<string, any[]>, active: boolean) {
     this.value = value
     this.active = active
   }
