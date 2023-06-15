@@ -1,10 +1,20 @@
+import { Observed, Trigger } from '../decorators/Observed'
+
 const baseId = 'base'
 
+enum PartitionTriggerId {
+  ActiveChange = 'activeChange',
+}
+
+type MapValue = Map<string, { id: string; [key: string]: any }[]>
+
 class Partition {
-  public value: Map<string, any>
+  public value: MapValue
+
+  @Observed(PartitionTriggerId.ActiveChange)
   public active: boolean
 
-  constructor(value: Map<string, any[]>, active: boolean) {
+  constructor(value: MapValue, active: boolean) {
     this.value = value
     this.active = active
   }
@@ -15,16 +25,16 @@ class Partition {
 }
 
 export class PartitionedMap {
-  public value: Map<string, any[]>
+  public value: MapValue
 
   public isolatedPartition: string
   public partitions: {
     [id: string]: Partition
   }
-  public base: Map<string, any[]>
+  public base: MapValue
 
   #cache: {
-    [key: string]: Map<string, any[]>
+    [key: string]: MapValue
   }
 
   get cacheKey() {
@@ -36,7 +46,7 @@ export class PartitionedMap {
 
   constructor(
     base: Map<string, any>,
-    partitions: { id: string; active: boolean; map: Map<string, any[]> }[]
+    partitions: { id: string; active: boolean; map: MapValue }[]
   ) {
     this.partitions = partitions.reduce(
       (acc: { [key: string]: Partition }, { id, active, map }) => ({
@@ -64,31 +74,32 @@ export class PartitionedMap {
   merge(id: string) {
     const partition = this.partitions[id]
     partition.value.forEach((value, key) => {
-      const existing = this.value.get(key)
-      const newVal = existing
-        ? Array.isArray(existing)
-          ? [...existing, ...(Array.isArray(value) ? value : [value])]
-          : [existing, ...(Array.isArray(value) ? value : [value])]
-        : value
-      this.value.set(key, newVal)
+      const existing = this.value.get(key) || []
+      this.value.set(key, [...existing, ...value])
     })
+    partition.setActive(true)
   }
 
-  split(id: string) {
+  remove(id: string) {
     const partition = this.partitions[id]
     partition.value.forEach((value, key) => {
       const existing = this.value.get(key)
-      const existingArray = Array.isArray(existing) ? existing : [existing]
-      const valueArray = Array.isArray(value) ? value : [value]
-      const newArr = existingArray.filter((item) => !valueArray.includes(item))
-      if (newArr.length) {
-        this.value.set(key, newArr.length === 1 ? newArr[0] : newArr)
-      } else {
+      if (!existing)
+        console.error(
+          `Key ${key} does not exist in target of removed partition, this means that something weird happened `
+        )
+      const ids = value.map((v) => v.id)
+      const newVal = existing.filter((v) => !ids.includes(v.id))
+      if (!newVal.length) {
         this.value.delete(key)
+      } else {
+        this.value.set(key, newVal)
       }
     })
+    partition.setActive(false)
   }
 
+  @Trigger(PartitionTriggerId.ActiveChange)
   partition() {
     this.value = new Map(this.#cache[baseId])
     Object.entries(this.partitions).forEach(([id, partition]) => {
@@ -99,6 +110,3 @@ export class PartitionedMap {
     this.#cache[this.cacheKey] = new Map(this.value)
   }
 }
-// `${key1}@${key2}`.replace(new RegExp(`(?:(${key1}-?)(${key2}-?))`, 'g'), (match, p1, p2) => {
-
-// });
