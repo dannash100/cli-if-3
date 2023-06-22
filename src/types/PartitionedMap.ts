@@ -8,14 +8,12 @@ enum PartitionTriggerId {
 
 type MapValue = Map<string, { id: string; [key: string]: any }[]>
 
-class Partition {
-  public value: MapValue
-
+class Partition extends Map<string, any[]> {
   @Observed(PartitionTriggerId.ActiveChange)
   public active: boolean
 
-  constructor(value: MapValue, active: boolean) {
-    this.value = value
+  constructor(val: MapValue, active: boolean) {
+    super(val)
     this.active = active
   }
 
@@ -24,8 +22,8 @@ class Partition {
   }
 }
 
-export class PartitionedMap {
-  public value: MapValue
+export class PartitionedMap extends Map<string, any[]> {
+  #value: MapValue
 
   public isolatedPartition: string
   public partitions: {
@@ -48,6 +46,7 @@ export class PartitionedMap {
     base: Map<string, any>,
     partitions: { id: string; active: boolean; map: MapValue }[]
   ) {
+    super(base)
     this.partitions = partitions.reduce(
       (acc: { [key: string]: Partition }, { id, active, map }) => ({
         ...acc,
@@ -58,6 +57,7 @@ export class PartitionedMap {
     this.#cache = {
       [baseId]: base,
     }
+    this.partition()
     this.partition()
   }
 
@@ -73,17 +73,17 @@ export class PartitionedMap {
 
   merge(id: string) {
     const partition = this.partitions[id]
-    partition.value.forEach((value, key) => {
-      const existing = this.value.get(key) || []
-      this.value.set(key, [...existing, ...value])
+    partition.forEach((value, key) => {
+      const existing = super.get(key) || []
+      super.set(key, [...existing, ...value])
     })
     partition.setActive(true)
   }
 
   remove(id: string) {
     const partition = this.partitions[id]
-    partition.value.forEach((value, key) => {
-      const existing = this.value.get(key)
+    partition.forEach((value, key) => {
+      const existing = super.get(key)
       if (!existing)
         console.error(
           `Key ${key} does not exist in target of removed partition, this means that something weird happened `
@@ -91,9 +91,9 @@ export class PartitionedMap {
       const ids = value.map((v) => v.id)
       const newVal = existing.filter((v) => !ids.includes(v.id))
       if (!newVal.length) {
-        this.value.delete(key)
+        super.delete(key)
       } else {
-        this.value.set(key, newVal)
+        super.set(key, newVal)
       }
     })
     partition.setActive(false)
@@ -101,12 +101,19 @@ export class PartitionedMap {
 
   @Trigger(PartitionTriggerId.ActiveChange)
   partition() {
-    this.value = new Map(this.#cache[baseId])
+    if (this.#cache[this.cacheKey]) {
+      this.clear()
+      Object.setPrototypeOf(
+        Object.getPrototypeOf(this),
+        new Map(this.#cache[this.cacheKey])
+      )
+      console.log(this)
+    }
     Object.entries(this.partitions).forEach(([id, partition]) => {
       if (partition.active) {
         this.merge(id)
       }
     })
-    this.#cache[this.cacheKey] = new Map(this.value)
+    this.#cache[this.cacheKey] = [...this.entries()]
   }
 }
