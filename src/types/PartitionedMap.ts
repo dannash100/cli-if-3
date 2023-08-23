@@ -1,39 +1,18 @@
-import { Observed, Trigger } from '../decorators/Observed'
-
-const baseId = 'base'
-
-enum PartitionTriggerId {
-  ActiveChange = 'activeChange',
+type Partition = {
+  id: string
+  active: boolean
+  value: Map<string, any[]>
 }
 
-type MapValue = Map<string, { id: string; [key: string]: any }[]>
-
-class Partition extends Map<string, any[]> {
-  @Observed(PartitionTriggerId.ActiveChange)
-  public active: boolean
-
-  constructor(val: MapValue, active: boolean) {
-    super(val)
-    this.active = active
-  }
-
-  setActive(active: boolean) {
-    this.active = active
-  }
+type Partitions = {
+  [id: string]: Partition
+  base: Partition
 }
 
-export class PartitionedMap extends Map<string, any[]> {
-  #value: MapValue
-
-  public isolatedPartition: string
-  public partitions: {
-    [id: string]: Partition
-  }
-  public base: MapValue
-
-  #cache: {
-    [key: string]: MapValue
-  }
+type CacheValue = Map<string, any[]>
+type PartitionValue = any[]
+export class PartitionedMap extends Map<string, CacheValue | PartitionValue> {
+  public partitions: Partitions
 
   get cacheKey() {
     return Object.keys(this.partitions)
@@ -42,78 +21,46 @@ export class PartitionedMap extends Map<string, any[]> {
       .join('-')
   }
 
-  constructor(
-    base: Map<string, any>,
-    partitions: { id: string; active: boolean; map: MapValue }[]
-  ) {
-    super(base)
+  get value() {
+    return super.get(this.cacheKey) as CacheValue
+  }
+
+  constructor(base: Map<string, any[]>, partitions: Partition[]) {
+    super()
     this.partitions = partitions.reduce(
-      (acc: { [key: string]: Partition }, { id, active, map }) => ({
+      (acc, partition) => ({
         ...acc,
-        [id]: new Partition(map, active),
+        [partition.id]: partition,
       }),
-      {}
+      { base: { id: 'base', active: true, value: base } }
     )
-    this.#cache = {
-      [baseId]: base,
-    }
-    this.partition()
     this.partition()
   }
 
-  isolate(id: string) {
-    this.value = this.partitions[id].value
-    this.isolatedPartition = id
+  public setActive(id: string, active: boolean) {
+    this.partitions[id].active = active
+    if (this.value) return
+    this.partition()
   }
 
-  unite() {
-    this.value = this.#cache[this.cacheKey]
-    this.isolatedPartition = null
+  #setInCache(map: CacheValue) {
+    super.set(this.cacheKey, map)
   }
 
-  merge(id: string) {
-    const partition = this.partitions[id]
-    partition.forEach((value, key) => {
-      const existing = super.get(key) || []
-      super.set(key, [...existing, ...value])
-    })
-    partition.setActive(true)
-  }
-
-  remove(id: string) {
-    const partition = this.partitions[id]
-    partition.forEach((value, key) => {
-      const existing = super.get(key)
-      if (!existing)
-        console.error(
-          `Key ${key} does not exist in target of removed partition, this means that something weird happened `
-        )
-      const ids = value.map((v) => v.id)
-      const newVal = existing.filter((v) => !ids.includes(v.id))
-      if (!newVal.length) {
-        super.delete(key)
-      } else {
-        super.set(key, newVal)
-      }
-    })
-    partition.setActive(false)
-  }
-
-  @Trigger(PartitionTriggerId.ActiveChange)
-  partition() {
-    if (this.#cache[this.cacheKey]) {
-      this.clear()
-      Object.setPrototypeOf(
-        Object.getPrototypeOf(this),
-        new Map(this.#cache[this.cacheKey])
-      )
-      console.log(this)
-    }
-    Object.entries(this.partitions).forEach(([id, partition]) => {
+  partition(): void {
+    const map = new Map()
+    Object.values(this.partitions).forEach((partition) => {
       if (partition.active) {
-        this.merge(id)
+        partition.value.forEach((value, key) => {
+          const existing = map.get(key) || []
+          map.set(key, [...existing, ...value])
+        })
       }
     })
-    this.#cache[this.cacheKey] = [...this.entries()]
+    this.#setInCache(map)
+  }
+
+  get(key: string): PartitionValue {
+    return this.value.get(key) || []
   }
 }
