@@ -11,6 +11,7 @@ type Partitions = {
 
 type CacheValue = Map<string, any[]>
 type PartitionValue = any[]
+
 export class PartitionedMap extends Map<string, CacheValue | PartitionValue> {
   public partitions: Partitions
 
@@ -43,21 +44,19 @@ export class PartitionedMap extends Map<string, CacheValue | PartitionValue> {
     this.partition()
   }
 
-  #setInCache(map: CacheValue) {
-    super.set(this.cacheKey, map)
+  #merge(partition: Partition): void {
+    if (!partition.active) return
+    partition.value.forEach((value, key) => {
+      const existing = this.value.get(key) || []
+      this.value.set(key, [...existing, ...value])
+    })
   }
 
   partition(): void {
-    const map = new Map()
-    Object.values(this.partitions).forEach((partition) => {
-      if (partition.active) {
-        partition.value.forEach((value, key) => {
-          const existing = map.get(key) || []
-          map.set(key, [...existing, ...value])
-        })
-      }
-    })
-    this.#setInCache(map)
+    this.set(this.cacheKey, new Map())
+    Object.values(this.partitions).forEach((partition) =>
+      this.#merge(partition)
+    )
   }
 
   get(key: string): PartitionValue {
