@@ -45,4 +45,14 @@ describe('PartitionedMap', () => {
     const map = new PartitionedMap(base, partitions)
     expect(map.get('a')).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9])
   })
+  it('should return keys of multiple partitions', () => {
+    const base = new Map([['a', []]])
+    const partitions = [
+      { id: 'b', active: true, value: new Map([['b', []]]) },
+      { id: 'c', active: true, value: new Map([['a', []]]) },
+      { id: 'd', active: true, value: new Map([['c', []]]) },
+    ]
+    const map = new PartitionedMap(base, partitions)
+    expect([...map.keys()]).toEqual(['a', 'b', 'c'])
+  })
 })
