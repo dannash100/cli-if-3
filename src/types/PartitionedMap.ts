@@ -2,6 +2,7 @@ type PartitionValue = any[]
 type Partition = {
   id: string
   active: boolean
+  isolated: boolean
   value: Map<string, PartitionValue>
 }
 
@@ -10,12 +11,19 @@ type CacheValue = Map<string, PartitionValue>
 export class PartitionedMap extends Map<string, CacheValue | PartitionValue> {
   #partitions: Partition[]
 
+  get #isolatedPartition() {
+    return this.#partitions.find((partition) => partition.isolated)
+  }
+
   get #cacheKey() {
-    return this.#partitions
-      .filter((partition) => partition.active)
-      .map((partition) => partition.id)
-      .sort()
-      .join('-')
+    return (
+      this.#isolatedPartition?.id ||
+      this.#partitions
+        .filter((partition) => partition.active)
+        .map((partition) => partition.id)
+        .sort()
+        .join('-')
+    )
   }
 
   get #value() {
@@ -25,14 +33,19 @@ export class PartitionedMap extends Map<string, CacheValue | PartitionValue> {
   constructor(base: CacheValue, partitions: Partition[]) {
     super()
     this.#partitions = [
-      { id: 'base', active: true, value: base },
+      { id: 'base', active: true, isolated: false, value: base },
       ...partitions,
     ]
     this.partition()
   }
 
   #merge(partition: Partition): void {
-    if (!partition.active) return
+    if (
+      (this.#isolatedPartition &&
+        this.#isolatedPartition?.id !== partition.id) ||
+      !partition.active
+    )
+      return
     partition.value.forEach((value, key) => {
       const existing = this.#value.get(key) || []
       this.#value.set(key, [...existing, ...value])
@@ -47,6 +60,18 @@ export class PartitionedMap extends Map<string, CacheValue | PartitionValue> {
   public setActive(id: string, active: boolean): void {
     this.#partitions.find((partition) => partition.id === id).active = active
     if (this.#value) return
+    this.partition()
+  }
+
+  public isolate(id: string): void {
+    this.#partitions.find((partition) => partition.id === id).isolated = true
+    this.partition()
+  }
+
+  public unisolate() {
+    if (!this.#isolatedPartition) return
+    this.#isolatedPartition.isolated = false
+    // todo trigger
     this.partition()
   }
 
