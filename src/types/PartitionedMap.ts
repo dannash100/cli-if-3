@@ -1,14 +1,33 @@
+import { EventTrigger } from '../decorators/Observed'
+import { entityLogger } from '../utils/logger'
+import { EntityNames } from './EntityNames'
+
 type PartitionValue = any[]
-type Partition = {
+// type Partition = {
+//   id: string
+//   active: boolean
+//   isolated: boolean
+//   value: Map<string, PartitionValue>
+// }
+
+type CacheValue = Map<string, PartitionValue>
+
+export enum TriggerId {
+  ActiveChange = 'activeChange',
+}
+
+class Partition {
   id: string
   active: boolean
   isolated: boolean
   value: Map<string, PartitionValue>
+
+  constructor(values) {
+    Object.assign(values, this)
+  }
 }
-
-type CacheValue = Map<string, PartitionValue>
-
 export class PartitionedMap extends Map<string, CacheValue | PartitionValue> {
+  log = entityLogger(EntityNames.PartitionedMap)
   #partitions: Partition[]
 
   get #isolatedPartition() {
@@ -32,6 +51,8 @@ export class PartitionedMap extends Map<string, CacheValue | PartitionValue> {
 
   constructor(base: CacheValue, partitions: Partition[]) {
     super()
+
+    this.log(`Creating map with ${partitions.length} partitions`)
     this.#partitions = [
       { id: 'base', active: true, isolated: false, value: base },
       ...partitions,
@@ -52,6 +73,7 @@ export class PartitionedMap extends Map<string, CacheValue | PartitionValue> {
     })
   }
 
+  @EventTrigger(TriggerId.ActiveChange)
   public partition(): void {
     this.set(this.#cacheKey, new Map())
     this.#partitions.forEach((partition) => this.#merge(partition))

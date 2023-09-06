@@ -34,6 +34,7 @@ const entityNameText = {
   [EntityNames.PathGroup]: chalk.blueBright(EntityNames.PathGroup),
   [EntityNames.Path]: chalk.cyanBright(EntityNames.Path),
   [EntityNames.Matcher]: chalk.greenBright(EntityNames.Matcher),
+  [EntityNames.PartitionedMap]: chalk.yellowBright(EntityNames.PartitionedMap),
 }
 
 const severityText = {
