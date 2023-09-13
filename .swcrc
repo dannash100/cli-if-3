@@ -9,8 +9,11 @@
       "legacyDecorator": true,
       "decoratorMetadata": true
     },
+    "assumptions": {
+      "setPublicClassFields": true
+    },
     "target": "es2016",
-    "loose": true,
+    "loose": false,
     "externalHelpers": false,
     // Requires v1.2.50 or upper and requires target to be es2016 or upper.
     "keepClassNames": true
