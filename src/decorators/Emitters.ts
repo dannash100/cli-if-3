@@ -29,11 +29,14 @@ export function ObserveChange(...args: string[]) {
 
     // Setter with first param as type of property decorated
     const setter = function (newVal) {
+      const triggers = Reflect.getMetadata('triggers', this.constructor)
+      if (!triggers) return
+
       this[property] = newVal
       args
         .map((id) => `${EntityTypes.Trigger}-${id}`)
         .forEach((id) => {
-          const eventEmitter = this.triggers[id]
+          const eventEmitter = triggers[id]
           if (eventEmitter) eventEmitter.emit('trigger', this.id)
         })
     }
@@ -55,11 +58,9 @@ export function ObserveChildren() {
     // Setter with first param as type of property decorated
     const setter = function (newVal) {
       const children = Array.isArray(newVal) ? newVal : [newVal]
-      if (!(children[0] instanceof Emittable))
-        throw new Error(
-          `Property ${key} does not support ObserveChildren decorator as it contains instances not extending Emittable`
-        )
       const eventTriggers = Reflect.getMetadata('eventTriggers', this) || []
+      const parentTriggers =
+        Reflect.getMetadata('triggers', this.constructor) || {}
       const triggers = eventTriggers.reduce(
         (acc, [triggerId, methodName]) => {
           class TriggerEmitter extends EventEmitter {}
@@ -72,10 +73,23 @@ export function ObserveChildren() {
             [triggerId]: triggerEmitter,
           }
         },
-        { ...this.triggers }
+        { ...parentTriggers }
       )
-      children.forEach((child) => child.setTriggers(triggers))
-      this[property] = newVal
+      const clonedChildren = children.map((child) => {
+        const proto = Object.getPrototypeOf(child)
+        @Reflect.metadata('triggers', triggers)
+        class C extends child.constructor {}
+        return Object.assign(
+          new C(),
+          proto,
+          // gets rid of symbol keys
+          Object.fromEntries(Object.entries(child))
+        )
+      })
+
+      this[property] = Array.isArray(newVal)
+        ? clonedChildren
+        : clonedChildren[0]
     }
     Object.defineProperty(target, key, {
       get: getter,

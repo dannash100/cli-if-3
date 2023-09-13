@@ -15,25 +15,23 @@ enum TestTriggerIds {
   AgeChange = 'ageChange',
 }
 
-export class GrandChildClass extends Emittable {
+export class GrandChildClass {
   public id: string
 
   @ObserveChange(TestTriggerIds.AgeChange)
   public declare age: number
 
   constructor(id) {
-    super()
     this.id = id
-    this.age = 0
-    console.log('constructor gchild')
   }
 
   public setAge(age: number) {
+    // console.log('setting age', age, this)
     this.age = age
   }
 }
 
-export class ChildClass extends Emittable {
+export class ChildClass {
   public id: string
 
   @ObserveChildren()
@@ -55,13 +53,7 @@ export class ChildClass extends Emittable {
   public declare lastName
 
   constructor(id) {
-    super()
-    console.log('setting grand child')
-    const triggers = Reflect.getMetadata('eventTriggers', this)
-    console.log(triggers)
     this.id = id
-    this.count = 0
-    this.toggle = false
     this.child = new GrandChildClass('FD')
   }
 
@@ -84,7 +76,7 @@ export class ChildClass extends Emittable {
   }
 }
 
-export class ParentClass<CType extends Emittable> {
+export class ParentClass<CType> {
   @ObserveChildren()
   public declare children: CType[] | CType
 
@@ -149,12 +141,6 @@ describe('Emitters', () => {
     expect(respondSpy).toHaveBeenCalledTimes(1)
     expect(respondSpy).toHaveBeenCalledWith('a')
   })
-  it('should throw an error when attempting to observe non Emittable children', () => {
-    class NonEmittableChild {}
-    expect(
-      () => new ParentClass(new NonEmittableChild() as unknown as ChildClass)
-    ).toThrow()
-  })
   it('multiple change observers across different properties', () => {
     const respondActiveSpy = jest.spyOn(
       ParentClass.prototype,
@@ -195,11 +181,11 @@ describe('Emitters', () => {
     expect(nameChangeSpy).toHaveBeenCalledTimes(2)
   })
   // Not working
-  it.skip('parent can observe change on grandchild class', () => {
+  it('parent can observe change on grandchild class', () => {
     const ageChangeSpy = jest.spyOn(ParentClass.prototype, 'respondAgeChange')
-    const parent = new ParentClass()
+    const parent = new ParentClass(new ChildClass('a'))
     const child = parent.children as ChildClass
-    // child.child.setAge(10)
+    child.child.setAge(10)
     expect(ageChangeSpy).toHaveBeenCalledTimes(1)
   })
 })
