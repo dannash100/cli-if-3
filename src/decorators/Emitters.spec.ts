@@ -19,14 +19,13 @@ export class GrandChildClass {
   public id: string
 
   @ObserveChange(TestTriggerIds.AgeChange)
-  public declare age: number
+  public age: number
 
   constructor(id) {
     this.id = id
   }
 
   public setAge(age: number) {
-    // console.log('setting age', age, this)
     this.age = age
   }
 }
@@ -35,22 +34,22 @@ export class ChildClass {
   public id: string
 
   @ObserveChildren()
-  public declare child: GrandChildClass
+  public child: GrandChildClass
 
   @ObserveChange(TestTriggerIds.ActiveChange)
-  public declare active
+  public active
 
   @ObserveChange(TestTriggerIds.CountChange)
-  public declare count
+  public count
 
   @ObserveChange(TestTriggerIds.ToggleChange1, TestTriggerIds.ToggleChange2)
-  public declare toggle
+  public toggle
 
   @ObserveChange(TestTriggerIds.FirstNameChange)
-  public declare firstName
+  public firstName
 
   @ObserveChange(TestTriggerIds.LastNameChange)
-  public declare lastName
+  public lastName
 
   constructor(id) {
     this.id = id
@@ -78,7 +77,7 @@ export class ChildClass {
 
 export class ParentClass<CType> {
   @ObserveChildren()
-  public declare children: CType[] | CType
+  public children: CType[] | CType
 
   constructor(children?: CType[] | CType) {
     // This works in terms of order
