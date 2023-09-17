@@ -13,15 +13,35 @@ enum TestTriggerIds {
   FirstNameChange = 'firstNameChange',
   LastNameChange = 'lastNameChange',
   AgeChange = 'ageChange',
+  AddressChange = 'addressChange',
+}
+
+export class GrandGrandChildClass {
+  public id: string
+
+  @ObserveChange(TestTriggerIds.AddressChange)
+  public address: string
+
+  constructor(id) {
+    this.id = id
+  }
+
+  public setAddress(address: string) {
+    this.address = address
+  }
 }
 
 export class GrandChildClass {
   public id: string
 
+  @ObserveChildren()
+  public child: GrandGrandChildClass
+
   @ObserveChange(TestTriggerIds.AgeChange)
   public age: number
 
-  constructor(id) {
+  constructor(id, child?: GrandGrandChildClass) {
+    this.child = child || new GrandGrandChildClass('FD')
     this.id = id
   }
 
@@ -51,9 +71,9 @@ export class ChildClass {
   @ObserveChange(TestTriggerIds.LastNameChange)
   public lastName
 
-  constructor(id) {
+  constructor(id, child?: GrandChildClass) {
     this.id = id
-    this.child = new GrandChildClass('FD')
+    this.child = child || new GrandChildClass('FD')
   }
 
   setActive(active: boolean) {
@@ -115,6 +135,11 @@ export class ParentClass<CType> {
 
   @EventTrigger(TestTriggerIds.AgeChange)
   public respondAgeChange(id) {
+    return id
+  }
+
+  @EventTrigger(TestTriggerIds.AddressChange)
+  public respondAddressChange(id) {
     return id
   }
 }
@@ -179,12 +204,38 @@ describe('Emitters', () => {
     child.setName('Daniel', 'Nash')
     expect(nameChangeSpy).toHaveBeenCalledTimes(2)
   })
-  // Not working
-  it('parent can observe change on grandchild class', () => {
+  it('parent can observe change on grandchild class instantiated in child constructor', () => {
     const ageChangeSpy = jest.spyOn(ParentClass.prototype, 'respondAgeChange')
     const parent = new ParentClass(new ChildClass('a'))
     const child = parent.children as ChildClass
     child.child.setAge(10)
     expect(ageChangeSpy).toHaveBeenCalledTimes(1)
+  })
+  it('parent can observe change on grandgrandchild class all instantiated before', () => {
+    const addressChangeSpy = jest.spyOn(
+      ParentClass.prototype,
+      'respondAddressChange'
+    )
+    const parent = new ParentClass(
+      new ChildClass(
+        'a',
+        new GrandChildClass('b', new GrandGrandChildClass('c'))
+      )
+    )
+    const child = parent.children as ChildClass
+    child.child.child.setAddress('123 Main St')
+    expect(addressChangeSpy).toHaveBeenCalledTimes(1)
+  })
+  it('parent can observe change on grandgrandchild class all instantiated in grandchild constructor', () => {
+    const addressChangeSpy = jest.spyOn(
+      ParentClass.prototype,
+      'respondAddressChange'
+    )
+    const parent = new ParentClass(
+      new ChildClass('a', new GrandChildClass('b'))
+    )
+    const child = parent.children as ChildClass
+    child.child.child.setAddress('123 Main St')
+    expect(addressChangeSpy).toHaveBeenCalledTimes(1)
   })
 })

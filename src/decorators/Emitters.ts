@@ -76,12 +76,10 @@ export function ObserveChildren() {
         { ...parentTriggers }
       )
       const clonedChildren = children.map((child) => {
-        const proto = Object.getPrototypeOf(child)
         @Reflect.metadata('triggers', triggers)
         class ChildClone extends child.constructor {}
         return Object.assign(
           new ChildClone(),
-          proto,
           // gets rid of symbol keys
           Object.fromEntries(Object.entries(child))
         )
